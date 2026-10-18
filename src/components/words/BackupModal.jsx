@@ -58,10 +58,10 @@ export const BackupModal = ({ isOpen, onClose }) => {
   };
 
   // Confirm Import
-  const handleConfirmImport = () => {
+  const handleConfirmImport = async () => {
     if (previewWords.length === 0) return;
 
-    importWords(previewWords, replaceExisting);
+    await importWords(previewWords, replaceExisting);
     onClose();
   };
 

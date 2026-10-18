@@ -10,7 +10,7 @@ import {
 export const ProfileSettings = ({ onOpenNotifications }) => {
   const { 
     user, updateUserProfile, theme, setTheme, 
-    words, streak, deleteAccount, showToast, setUser 
+    words, streak, deleteAccount, showToast, logoutUser 
   } = useApp();
 
   // Subview: 'main' | 'theme' | 'goal' | 'delete'
@@ -319,10 +319,7 @@ export const ProfileSettings = ({ onOpenNotifications }) => {
           {/* Chiqish va Hisobni o'chirish */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <button
-              onClick={() => {
-                setUser(prev => ({ ...prev, isAuth: false }));
-                showToast('Tizimdan chiqdingiz', 'info');
-              }}
+              onClick={logoutUser}
               style={{
                 padding: '14px',
                 borderRadius: 'var(--radius-md)',

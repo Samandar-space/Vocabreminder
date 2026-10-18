@@ -7,7 +7,7 @@ import {
   Sparkles, Zap, Trophy, Coins, Target 
 } from 'lucide-react';
 
-export const HomeDashboard = ({ onOpenAddModal, onStartReview, onStartMiniTest }) => {
+export const HomeDashboard = ({ onOpenAddModal, onStartReview, onStartMiniTest, onStartQuickQuiz }) => {
   const { user, words, streak, setCurrentTab, coins } = useApp();
 
   // Words due for Leitner review
@@ -19,8 +19,9 @@ export const HomeDashboard = ({ onOpenAddModal, onStartReview, onStartMiniTest }
   const totalCorrect = words.reduce((acc, w) => acc + (w.correctCount || 0), 0);
   const accuracy = totalReviewed > 0 ? Math.round((totalCorrect / totalReviewed) * 100) : 100;
   const targetWords = user.dailyGoal || 20;
-  const progressPercent = words.length > 0 
-    ? Math.min(100, Math.round(((totalReviewed % targetWords) / targetWords) * 100))
+  const todayReviewed = streak?.reviewedToday || 0;
+  const progressPercent = targetWords > 0 
+    ? Math.min(100, Math.round((todayReviewed / targetWords) * 100))
     : 0;
 
   // Leitner Boxes Distribution
@@ -224,6 +225,27 @@ export const HomeDashboard = ({ onOpenAddModal, onStartReview, onStartMiniTest }
                   <Award size={16} /> Tezkor test
                 </button>
               )}
+
+              {words.length >= 1 && onStartQuickQuiz && (
+                <button
+                  onClick={onStartQuickQuiz}
+                  style={{
+                    padding: '10px 18px',
+                    background: 'rgba(255, 255, 255, 0.22)',
+                    color: '#FFFFFF',
+                    borderRadius: 'var(--radius-full)',
+                    fontWeight: 700,
+                    fontSize: '13px',
+                    border: '1px solid rgba(255, 255, 255, 0.35)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Sparkles size={16} /> 🔲 Kvadrat Tezkor Savol
+                </button>
+              )}
             </div>
           </div>
 
@@ -409,6 +431,7 @@ export const HomeDashboard = ({ onOpenAddModal, onStartReview, onStartMiniTest }
           {/* 1. MOCK TESTLAR (HOT) */}
           <div
             onClick={() => setCurrentTab('mock')}
+            className="card-interactive btn-press"
             style={{
               padding: '18px',
               borderRadius: 'var(--radius-lg)',
@@ -421,8 +444,7 @@ export const HomeDashboard = ({ onOpenAddModal, onStartReview, onStartMiniTest }
               minHeight: '130px',
               boxShadow: 'var(--shadow-sm)',
               position: 'relative',
-              overflow: 'hidden',
-              transition: 'all var(--transition-normal)'
+              overflow: 'hidden'
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -462,6 +484,7 @@ export const HomeDashboard = ({ onOpenAddModal, onStartReview, onStartMiniTest }
           {/* 2. O'YINLAR ZONASI */}
           <div
             onClick={() => setCurrentTab('games')}
+            className="card-interactive btn-press"
             style={{
               padding: '18px',
               borderRadius: 'var(--radius-lg)',
@@ -472,8 +495,7 @@ export const HomeDashboard = ({ onOpenAddModal, onStartReview, onStartMiniTest }
               flexDirection: 'column',
               justifyContent: 'space-between',
               minHeight: '130px',
-              boxShadow: 'var(--shadow-sm)',
-              transition: 'all var(--transition-normal)'
+              boxShadow: 'var(--shadow-sm)'
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -513,6 +535,7 @@ export const HomeDashboard = ({ onOpenAddModal, onStartReview, onStartMiniTest }
           {/* 3. BOZOR / MARKET */}
           <div
             onClick={() => setCurrentTab('market')}
+            className="card-interactive btn-press"
             style={{
               padding: '18px',
               borderRadius: 'var(--radius-lg)',
@@ -523,8 +546,7 @@ export const HomeDashboard = ({ onOpenAddModal, onStartReview, onStartMiniTest }
               flexDirection: 'column',
               justifyContent: 'space-between',
               minHeight: '130px',
-              boxShadow: 'var(--shadow-sm)',
-              transition: 'all var(--transition-normal)'
+              boxShadow: 'var(--shadow-sm)'
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -564,6 +586,7 @@ export const HomeDashboard = ({ onOpenAddModal, onStartReview, onStartMiniTest }
           {/* 4. AI WRITING CHECKER */}
           <div
             onClick={() => setCurrentTab('writing')}
+            className="card-interactive btn-press"
             style={{
               padding: '18px',
               borderRadius: 'var(--radius-lg)',
@@ -574,8 +597,7 @@ export const HomeDashboard = ({ onOpenAddModal, onStartReview, onStartMiniTest }
               flexDirection: 'column',
               justifyContent: 'space-between',
               minHeight: '130px',
-              boxShadow: 'var(--shadow-sm)',
-              transition: 'all var(--transition-normal)'
+              boxShadow: 'var(--shadow-sm)'
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -615,6 +637,7 @@ export const HomeDashboard = ({ onOpenAddModal, onStartReview, onStartMiniTest }
           {/* 5. READING */}
           <div
             onClick={() => setCurrentTab('reading')}
+            className="card-interactive btn-press"
             style={{
               padding: '18px',
               borderRadius: 'var(--radius-lg)',
@@ -625,8 +648,7 @@ export const HomeDashboard = ({ onOpenAddModal, onStartReview, onStartMiniTest }
               flexDirection: 'column',
               justifyContent: 'space-between',
               minHeight: '130px',
-              boxShadow: 'var(--shadow-sm)',
-              transition: 'all var(--transition-normal)'
+              boxShadow: 'var(--shadow-sm)'
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -666,6 +688,7 @@ export const HomeDashboard = ({ onOpenAddModal, onStartReview, onStartMiniTest }
           {/* 6. GRAMMAR & LEVEL TEST */}
           <div
             onClick={() => setCurrentTab('grammar')}
+            className="card-interactive btn-press"
             style={{
               padding: '18px',
               borderRadius: 'var(--radius-lg)',
@@ -676,8 +699,7 @@ export const HomeDashboard = ({ onOpenAddModal, onStartReview, onStartMiniTest }
               flexDirection: 'column',
               justifyContent: 'space-between',
               minHeight: '130px',
-              boxShadow: 'var(--shadow-sm)',
-              transition: 'all var(--transition-normal)'
+              boxShadow: 'var(--shadow-sm)'
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -810,7 +832,20 @@ export const HomeDashboard = ({ onOpenAddModal, onStartReview, onStartMiniTest }
               const percent = words.length > 0 ? Math.round((count / words.length) * 100) : 0;
 
               return (
-                <div key={b.num}>
+                <div 
+                  key={b.num}
+                  onClick={() => setCurrentTab('words')}
+                  className="btn-press"
+                  title="Lug'atda ko'rish"
+                  style={{
+                    padding: '6px 8px',
+                    borderRadius: 'var(--radius-md)',
+                    cursor: 'pointer',
+                    transition: 'background var(--transition-fast)'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-subtle)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                >
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
                     <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>
                       {b.label}
@@ -823,7 +858,7 @@ export const HomeDashboard = ({ onOpenAddModal, onStartReview, onStartMiniTest }
                     <div style={{
                       width: `${percent}%`,
                       height: '100%',
-                      background: b.num === 5 ? 'var(--success)' : 'var(--primary)',
+                      background: b.num === 5 ? 'var(--success)' : 'var(--primary-gradient)',
                       borderRadius: '3px',
                       transition: 'width 0.4s ease'
                     }} />

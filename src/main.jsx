@@ -9,11 +9,15 @@ createRoot(document.getElementById('root')).render(
   </StrictMode>,
 )
 
-// Register Service Worker for PWA
-if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
+// Register Service Worker for PWA (Compliant with Vite & modern browsers)
+if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {
-      // SW registration fallback
-    });
+    navigator.serviceWorker.register('/sw.js')
+      .then((reg) => {
+        // SW registered
+      })
+      .catch((err) => {
+        console.warn('Service worker registration failed:', err);
+      });
   });
 }

@@ -1,31 +1,38 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Bell, X, CheckCircle2, Clock, Moon, Sparkles, Send } from 'lucide-react';
+import { Bell, X, CheckCircle2, Clock, Moon, Sparkles, Send, Play } from 'lucide-react';
+import { notificationService } from '../../services/notificationService';
 
-export const NotificationSimulator = ({ isOpen, onClose }) => {
+export const NotificationSimulator = ({ isOpen, onClose, onOpenQuickQuiz }) => {
   const { words, notificationSettings, setNotificationSettings, addCoins, showToast } = useApp();
 
   const [activeTab, setActiveTab] = useState('quiz'); // 'quiz' | 'settings' | 'lockscreen'
+  const [wordIndex, setWordIndex] = useState(0);
   
-  // Quick question test word
-  const testWord = words.length > 0 ? words[0] : {
-    word: 'challenge',
-    translation: 'sinov, qiyinchilik'
-  };
+  // Quick question test word strictly from user's words
+  const testWord = words && words.length > 0 ? words[wordIndex % words.length] : null;
 
   const [selectedOption, setSelectedOption] = useState(null);
   const [isCorrect, setIsCorrect] = useState(false);
 
+  // Options derived strictly from user's own words
+  const quickOptions = React.useMemo(() => {
+    if (!testWord) return [];
+    const others = words.filter(w => w.id !== testWord.id).map(w => w.translation);
+    const shuffledOthers = others.sort(() => 0.5 - Math.random()).slice(0, 3);
+    return [testWord.translation, ...shuffledOthers].sort(() => 0.5 - Math.random());
+  }, [testWord, words]);
+
   if (!isOpen) return null;
 
-  const quickOptions = [
-    testWord.translation,
-    'oshirmoq, ko\'paytirmoq',
-    'kamaytirmoq',
-    'to\'xtatmoq'
-  ].sort(() => 0.5 - Math.random());
+  const handleNextTestWord = () => {
+    setSelectedOption(null);
+    setIsCorrect(false);
+    setWordIndex(prev => (prev + 1) % words.length);
+  };
 
   const handleSelect = (opt) => {
+    if (!testWord || selectedOption) return;
     setSelectedOption(opt);
     const correct = opt === testWord.translation;
     setIsCorrect(correct);
@@ -34,28 +41,18 @@ export const NotificationSimulator = ({ isOpen, onClose }) => {
     }
   };
 
-  // Trigger real Web Notification
-  const triggerRealPush = () => {
-    if (!('Notification' in window)) {
-      showToast('Brauzeringiz Web Notificationni qo\'llab-quvvatlamaydi', 'error');
+  const triggerRealPush = async () => {
+    if (!notificationService.isSupported()) {
+      showToast('Brauzeringiz bildirishnomani qo\'llab-quvvatlamaydi', 'error');
       return;
     }
 
-    if (Notification.permission === 'granted') {
-      new Notification('VocabReminder — Takrorlash vaqti keldi!', {
-        body: `"${testWord.word}" so'zining ma'nosi nima? Tezroq kirib javob bering!`,
-        icon: '/favicon.svg'
-      });
-      showToast('Haqiqiy bildirishnoma telefoningizga yuborildi!', 'success');
+    const wordToSend = testWord || { id: 'demo', word: 'consistent', translation: 'izchil, barqaror' };
+    const success = await notificationService.showWordNotification(wordToSend);
+    if (success) {
+      showToast('Haqiqiy bildirishnoma telefon/qurilmangizga yuborildi!', 'success');
     } else {
-      Notification.requestPermission().then(perm => {
-        if (perm === 'granted') {
-          new Notification('VocabReminder', { body: `"${testWord.word}" so'zini eslaysizmi?` });
-          showToast('Bildirishnomaga ruxsat berildi!', 'success');
-        } else {
-          showToast('Bildirishnoma yoqilmadi', 'info');
-        }
-      });
+      showToast('Bildirishnomaga ruxsat berilmadi yoki bloklangan', 'info');
     }
   };
 
@@ -139,100 +136,158 @@ export const NotificationSimulator = ({ isOpen, onClose }) => {
           </button>
         </div>
 
-        {/* 1. TEZKOR SAVOL MODAL (As shown in screenshot) */}
+        {/* 1. TEZKOR SAVOL MODAL */}
         {activeTab === 'quiz' && (
           <div>
-            <div style={{
-              borderRadius: 'var(--radius-lg)',
-              background: 'var(--bg-subtle)',
-              border: '1.5px solid var(--border-subtle)',
-              padding: '24px 20px',
-              textAlign: 'center',
-              marginBottom: '20px'
-            }}>
-              <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--primary)', letterSpacing: '0.8px', textTransform: 'uppercase' }}>
-                KUNLIK TAKRORLASH
-              </span>
-              <h2 style={{ fontSize: '30px', fontWeight: 800, color: 'var(--text-primary)', margin: '8px 0 4px 0' }}>
-                {testWord.word}
-              </h2>
-              <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                ushbu so'zning to'g'ri tarjimasini tanlang:
-              </p>
-            </div>
+            {!testWord ? (
+              <div style={{ textAlign: 'center', padding: '36px 12px' }}>
+                <div style={{
+                  width: '64px',
+                  height: '64px',
+                  borderRadius: '50%',
+                  background: 'var(--primary-100)',
+                  color: 'var(--primary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 16px auto'
+                }}>
+                  <Sparkles size={32} />
+                </div>
+                <h4 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '8px' }}>
+                  Lug'atingizda hali so'zlar yo'q
+                </h4>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '24px', lineHeight: 1.5, maxWidth: '320px', margin: '0 auto 24px auto' }}>
+                  Eslatma va tezkor savollar uchun avval lug'at bo'limiga o'tib, kamida 1 ta so'z qo'shing.
+                </p>
+                <button
+                  onClick={onClose}
+                  style={{
+                    padding: '12px 28px',
+                    borderRadius: 'var(--radius-md)',
+                    background: 'var(--primary-gradient)',
+                    color: '#FFFFFF',
+                    fontWeight: 700,
+                    fontSize: '14px'
+                  }}
+                >
+                  Tushundim
+                </button>
+              </div>
+            ) : (
+              <div>
+                <div style={{
+                  borderRadius: 'var(--radius-lg)',
+                  background: 'var(--bg-subtle)',
+                  border: '1.5px solid var(--border-subtle)',
+                  padding: '24px 20px',
+                  textAlign: 'center',
+                  marginBottom: '20px'
+                }}>
+                  <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--primary)', letterSpacing: '0.8px', textTransform: 'uppercase' }}>
+                    KUNLIK TAKRORLASH
+                  </span>
+                  <h2 style={{ fontSize: '30px', fontWeight: 800, color: 'var(--text-primary)', margin: '8px 0 4px 0' }}>
+                    {testWord.word}
+                  </h2>
+                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                    ushbu so'zning to'g'ri tarjimasini tanlang:
+                  </p>
+                </div>
 
-            {/* 4 Options */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
-              {quickOptions.map((opt, i) => {
-                const isSelected = selectedOption === opt;
-                const isThisCorrect = opt === testWord.translation;
+                {/* 4 Options */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+                  {quickOptions.map((opt, i) => {
+                    const isSelected = selectedOption === opt;
+                    const isThisCorrect = opt === testWord.translation;
 
-                let border = 'var(--border-subtle)';
-                let bg = 'var(--bg-surface)';
-                let color = 'var(--text-primary)';
+                    let border = 'var(--border-subtle)';
+                    let bg = 'var(--bg-surface)';
+                    let color = 'var(--text-primary)';
 
-                if (selectedOption) {
-                  if (isThisCorrect) {
-                    border = 'var(--success)';
-                    bg = 'var(--success-light)';
-                    color = 'var(--success-dark)';
-                  } else if (isSelected && !isThisCorrect) {
-                    border = 'var(--danger)';
-                    bg = 'var(--danger-light)';
-                    color = 'var(--danger)';
-                  }
-                }
+                    if (selectedOption) {
+                      if (isThisCorrect) {
+                        border = 'var(--success)';
+                        bg = 'var(--success-light)';
+                        color = 'var(--success-dark)';
+                      } else if (isSelected && !isThisCorrect) {
+                        border = 'var(--danger)';
+                        bg = 'var(--danger-light)';
+                        color = 'var(--danger)';
+                      }
+                    }
 
-                return (
-                  <div
-                    key={i}
-                    onClick={() => handleSelect(opt)}
+                    return (
+                      <div
+                        key={i}
+                        onClick={() => handleSelect(opt)}
+                        style={{
+                          padding: '14px 18px',
+                          borderRadius: 'var(--radius-md)',
+                          border: `2px solid ${border}`,
+                          background: bg,
+                          color: color,
+                          fontWeight: 600,
+                          fontSize: '14px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          cursor: selectedOption ? 'default' : 'pointer'
+                        }}
+                      >
+                        <span>{opt}</span>
+                        {selectedOption && isThisCorrect && <CheckCircle2 size={18} color="var(--success)" />}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Success Motivation text */}
+                {selectedOption && isCorrect && (
+                  <div style={{ textAlign: 'center', color: 'var(--success-dark)', marginBottom: '16px' }}>
+                    <strong style={{ fontSize: '15px' }}>To'g'ri!</strong>
+                    <p style={{ fontSize: '13px', marginTop: '2px' }}>
+                      Yaxshi natija, xotirangiz mustahkamlanmoqda.
+                    </p>
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  {words.length > 1 && (
+                    <button
+                      onClick={handleNextTestWord}
+                      style={{
+                        flex: 1,
+                        padding: '14px',
+                        borderRadius: 'var(--radius-md)',
+                        background: 'var(--bg-subtle)',
+                        color: 'var(--text-primary)',
+                        fontWeight: 700,
+                        fontSize: '14px',
+                        border: '1px solid var(--border-subtle)'
+                      }}
+                    >
+                      Boshqa so'z
+                    </button>
+                  )}
+                  <button
+                    onClick={onClose}
                     style={{
-                      padding: '14px 18px',
+                      flex: 1,
+                      padding: '14px',
                       borderRadius: 'var(--radius-md)',
-                      border: `2px solid ${border}`,
-                      background: bg,
-                      color: color,
-                      fontWeight: 600,
+                      background: 'var(--primary-gradient)',
+                      color: '#FFFFFF',
+                      fontWeight: 700,
                       fontSize: '14px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      cursor: selectedOption ? 'default' : 'pointer'
+                      boxShadow: 'var(--shadow-primary)'
                     }}
                   >
-                    <span>{opt}</span>
-                    {selectedOption && isThisCorrect && <CheckCircle2 size={18} color="var(--success)" />}
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Success Motivation text */}
-            {selectedOption && isCorrect && (
-              <div style={{ textAlign: 'center', color: 'var(--success-dark)', marginBottom: '16px' }}>
-                <strong style={{ fontSize: '15px' }}>To'g'ri!</strong>
-                <p style={{ fontSize: '13px', marginTop: '2px' }}>
-                  Yaxshi natija, xotirangiz mustahkamlanmoqda.
-                </p>
+                    Yopish
+                  </button>
+                </div>
               </div>
             )}
-
-            <button
-              onClick={onClose}
-              style={{
-                width: '100%',
-                padding: '15px',
-                borderRadius: 'var(--radius-md)',
-                background: 'var(--primary-gradient)',
-                color: '#FFFFFF',
-                fontWeight: 700,
-                fontSize: '15px',
-                boxShadow: 'var(--shadow-primary)'
-              }}
-            >
-              Davom etish
-            </button>
           </div>
         )}
 
@@ -282,7 +337,7 @@ export const NotificationSimulator = ({ isOpen, onClose }) => {
                     fontWeight: 600
                   }}
                 >
-                  {testWord.translation}
+                  {testWord ? testWord.translation : 'To\'g\'ri javob'}
                 </button>
                 <button
                   onClick={() => { showToast('Noto\'g\'ri javob', 'error'); }}
@@ -295,7 +350,7 @@ export const NotificationSimulator = ({ isOpen, onClose }) => {
                     fontWeight: 600
                   }}
                 >
-                  oshirmoq
+                  {words.length > 1 && words.find(w => w.id !== testWord?.id) ? words.find(w => w.id !== testWord?.id).translation : 'Variant 2'}
                 </button>
               </div>
             </div>
@@ -319,6 +374,28 @@ export const NotificationSimulator = ({ isOpen, onClose }) => {
             >
               <Send size={16} /> Haqiqiy push bildirishnomani sinash
             </button>
+
+            {onOpenQuickQuiz && (
+              <button
+                onClick={() => { onClose(); onOpenQuickQuiz(); }}
+                style={{
+                  padding: '13px',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--bg-subtle)',
+                  color: 'var(--primary)',
+                  fontWeight: 700,
+                  fontSize: '13px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  border: '1.5px solid var(--primary-200)',
+                  cursor: 'pointer'
+                }}
+              >
+                <Play size={15} /> 🔲 Kvadrat Tezkor Savol (Ovozli / Yozma)
+              </button>
+            )}
           </div>
         )}
 

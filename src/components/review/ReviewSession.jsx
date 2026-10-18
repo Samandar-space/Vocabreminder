@@ -3,14 +3,72 @@ import { useApp } from '../../context/AppContext';
 import { speechService } from '../../services/speech';
 import confetti from 'canvas-confetti';
 import { 
-  X, Volume2, CheckCircle2, XCircle, RotateCw, 
-  HelpCircle, ArrowRight, Award, Sparkles, BookOpen 
+  X, Volume2, CheckCircle2, XCircle, BookOpen 
 } from 'lucide-react';
 
 export const ReviewSession = ({ onFinish }) => {
   const { words, recordReviewResult, addCoins, showToast, setCurrentTab } = useApp();
 
-  // If no words exist in vocabulary
+  // Fixed: Capture session deck once on mount so it does not dynamically shrink and skip cards!
+  const [sessionDeck, setSessionDeck] = useState(() => {
+    const due = words.filter(w => new Date(w.nextReviewDate) <= new Date());
+    if (due.length > 0) return [...due];
+    return words.slice(0, 10);
+  });
+  const [initialDeckLength] = useState(() => {
+    const due = words.filter(w => new Date(w.nextReviewDate) <= new Date());
+    return due.length > 0 ? due.length : Math.min(words.length, 10);
+  });
+  const [repeatCount, setRepeatCount] = useState(0);
+  const [lastAnswerWasWrong, setLastAnswerWasWrong] = useState(false);
+
+  // Session state
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [mode, setMode] = useState('flashcard'); // 'flashcard' | 'quiz' | 'spelling'
+  const [isFlipped, setIsFlipped] = useState(false);
+  
+  // Quiz specific states
+  const [quizSelectedOption, setQuizSelectedOption] = useState(null);
+  const [quizIsAnswered, setQuizIsAnswered] = useState(false);
+  const [quizOptions, setQuizOptions] = useState([]);
+
+  // Spelling mode state
+  const [spellingInput, setSpellingInput] = useState('');
+  const [spellingChecked, setSpellingChecked] = useState(false);
+
+  // Results tracker
+  const [correctAnswers, setCorrectAnswers] = useState(0);
+  const [isCompleted, setIsCompleted] = useState(false);
+
+  const currentWord = sessionDeck[currentIndex];
+
+  // Generate randomized quiz options whenever current word changes
+  useEffect(() => {
+    if (!currentWord) return;
+
+    const correct = currentWord.translation;
+    // Pick 3 distractors from other words
+    const others = words.filter(w => w.id !== currentWord.id).map(w => w.translation);
+    const shuffledOthers = others.sort(() => 0.5 - Math.random()).slice(0, 3);
+
+    // Fallback distractors if user has fewer than 4 words
+    const fallbacks = ['saqlamoq', 'oshirmoq', 'kamaytirmoq', 'to\'xtatmoq', 'boshlamoq', 'o\'rganmoq'];
+    while (shuffledOthers.length < 3) {
+      const fb = fallbacks.find(f => f !== correct && !shuffledOthers.includes(f));
+      if (fb) shuffledOthers.push(fb);
+      else shuffledOthers.push('boshqa ma\'no ' + (shuffledOthers.length + 1));
+    }
+
+    const allOpts = [correct, ...shuffledOthers].sort(() => 0.5 - Math.random());
+    setQuizOptions(allOpts);
+    setQuizSelectedOption(null);
+    setQuizIsAnswered(false);
+    setIsFlipped(false);
+    setSpellingInput('');
+    setSpellingChecked(false);
+  }, [currentIndex, currentWord, words]);
+
+  // If no words exist in vocabulary - rendered AFTER all hooks
   if (words.length === 0) {
     return (
       <div style={{
@@ -58,63 +116,17 @@ export const ReviewSession = ({ onFinish }) => {
     );
   }
 
-  // Find due words or review all available if none due
-  const sessionQueue = words.filter(w => new Date(w.nextReviewDate) <= new Date());
-  const activeList = sessionQueue.length > 0 ? sessionQueue : words.slice(0, 10);
-
-  // Session state
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [mode, setMode] = useState('flashcard'); // 'flashcard' | 'quiz' | 'spelling'
-  const [isFlipped, setIsFlipped] = useState(false);
-  
-  // Quiz specific states
-  const [quizSelectedOption, setQuizSelectedOption] = useState(null);
-  const [quizIsAnswered, setQuizIsAnswered] = useState(false);
-  const [quizOptions, setQuizOptions] = useState([]);
-
-  // Spelling mode state
-  const [spellingInput, setSpellingInput] = useState('');
-  const [spellingChecked, setSpellingChecked] = useState(false);
-
-  // Results tracker
-  const [correctAnswers, setCorrectAnswers] = useState(0);
-  const [isCompleted, setIsCompleted] = useState(false);
-
-  const currentWord = activeList[currentIndex];
-
-  // Generate randomized quiz options whenever current word changes
-  useEffect(() => {
-    if (!currentWord) return;
-
-    const correct = currentWord.translation;
-    // Pick 3 distractors from other words
-    const others = words.filter(w => w.id !== currentWord.id).map(w => w.translation);
-    const shuffledOthers = others.sort(() => 0.5 - Math.random()).slice(0, 3);
-
-    // Fallback distractors if user has fewer than 4 words
-    const fallbacks = ['saqlamoq', 'oshirmoq', 'kamaytirmoq', 'to\'xtatmoq', 'boshlamoq', 'o\'rganmoq'];
-    while (shuffledOthers.length < 3) {
-      const fb = fallbacks.find(f => f !== correct && !shuffledOthers.includes(f));
-      if (fb) shuffledOthers.push(fb);
-      else shuffledOthers.push('boshqa ma\'no ' + (shuffledOthers.length + 1));
-    }
-
-    const allOpts = [correct, ...shuffledOthers].sort(() => 0.5 - Math.random());
-    setQuizOptions(allOpts);
-    setQuizSelectedOption(null);
-    setQuizIsAnswered(false);
-    setIsFlipped(false);
-    setSpellingInput('');
-    setSpellingChecked(false);
-  }, [currentIndex, currentWord]);
-
   // Flashcard quality answer
   const handleQualityAnswer = (quality) => {
-    if (quality !== 'hard') {
+    const isHard = quality === 'hard';
+    if (!isHard) {
       setCorrectAnswers(prev => prev + 1);
     }
     recordReviewResult(currentWord.id, quality);
-    nextStep();
+    if (isHard) {
+      showToast('So\'z dars oxirida yana qayta so\'raladi', 'info');
+    }
+    nextStep(isHard);
   };
 
   // Quiz Option Click
@@ -127,11 +139,21 @@ export const ReviewSession = ({ onFinish }) => {
     if (isCorrect) {
       setCorrectAnswers(prev => prev + 1);
       recordReviewResult(currentWord.id, 'easy');
+      setLastAnswerWasWrong(false);
       showToast('To\'g\'ri javob! (+3 coin)', 'success');
     } else {
       recordReviewResult(currentWord.id, 'hard');
-      showToast('Noto\'g\'ri, qayta takrorlaymiz', 'error');
+      setLastAnswerWasWrong(true);
+      showToast('Noto\'g\'ri! So\'z dars oxirida yana qayta so\'raladi', 'error');
     }
+  };
+
+  const cleanSpelling = (text) => {
+    return (text || '')
+      .toLowerCase()
+      .replace(/\(.*?\)/g, '')
+      .replace(/[^a-z0-9\s'-]/g, '')
+      .trim();
   };
 
   // Spelling Check
@@ -140,19 +162,39 @@ export const ReviewSession = ({ onFinish }) => {
     if (!spellingInput.trim()) return;
     setSpellingChecked(true);
 
-    const isCorrect = spellingInput.trim().toLowerCase() === currentWord.word.toLowerCase();
+    const cleanUser = cleanSpelling(spellingInput);
+    const cleanWord = cleanSpelling(currentWord.word);
+    const isCorrect = cleanUser === cleanWord ||
+                      (cleanWord.startsWith('to ') && cleanUser === cleanWord.replace(/^to\s+/, '')) ||
+                      (cleanUser.startsWith('to ') && cleanUser.replace(/^to\s+/, '') === cleanWord);
+
     if (isCorrect) {
       setCorrectAnswers(prev => prev + 1);
       recordReviewResult(currentWord.id, 'easy');
+      setLastAnswerWasWrong(false);
       showToast('Zo\'r! To\'g\'ri yozdingiz (+5 coin)', 'success');
     } else {
       recordReviewResult(currentWord.id, 'hard');
+      setLastAnswerWasWrong(true);
+      showToast('Xato yozildi! So\'z dars oxirida yana qayta so\'raladi', 'error');
     }
   };
 
   // Next Word or Finish
-  const nextStep = () => {
-    if (currentIndex + 1 < activeList.length) {
+  const nextStep = (repeatCurrent = false) => {
+    // Prevent MouseEvent objects from making repeatCurrent truthy on correct answers!
+    const isBoolRepeat = typeof repeatCurrent === 'boolean' ? repeatCurrent : false;
+    const shouldRepeat = isBoolRepeat || lastAnswerWasWrong;
+    setLastAnswerWasWrong(false);
+
+    let nextDeckLength = sessionDeck.length;
+    if (shouldRepeat && currentWord) {
+      setSessionDeck(prev => [...prev, currentWord]);
+      setRepeatCount(prev => prev + 1);
+      nextDeckLength += 1;
+    }
+
+    if (currentIndex + 1 < nextDeckLength) {
       setCurrentIndex(prev => prev + 1);
     } else {
       // Finished!
@@ -168,7 +210,7 @@ export const ReviewSession = ({ onFinish }) => {
 
   // 1. SESSION COMPLETED ("TAYYOR!" SCREEN)
   if (isCompleted) {
-    const accuracyPercent = Math.round((correctAnswers / activeList.length) * 100);
+    const accuracyPercent = Math.min(100, Math.round((correctAnswers / Math.max(initialDeckLength, 1)) * 100));
 
     return (
       <div 
@@ -221,7 +263,7 @@ export const ReviewSession = ({ onFinish }) => {
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
               <span style={{ color: 'var(--text-secondary)' }}>Takrorlangan so'zlar</span>
-              <strong style={{ color: 'var(--text-primary)' }}>{activeList.length} ta so'z</strong>
+              <strong style={{ color: 'var(--text-primary)' }}>{initialDeckLength} ta so'z</strong>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
               <span style={{ color: 'var(--text-secondary)' }}>Aniq javoblar</span>
@@ -255,7 +297,7 @@ export const ReviewSession = ({ onFinish }) => {
   }
 
   // Progress percentage
-  const progress = Math.round(((currentIndex + 1) / activeList.length) * 100);
+  const progress = Math.min(100, Math.round(((currentIndex + 1) / Math.max(sessionDeck.length, 1)) * 100));
 
   return (
     <div style={{ padding: '16px 20px 30px 20px', minHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
@@ -273,15 +315,29 @@ export const ReviewSession = ({ onFinish }) => {
           Takrorlash darsi
         </div>
 
-        <div style={{
-          padding: '4px 12px',
-          borderRadius: 'var(--radius-full)',
-          background: 'var(--primary-100)',
-          color: 'var(--primary)',
-          fontSize: '13px',
-          fontWeight: 800
-        }}>
-          {currentIndex + 1}/{activeList.length}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {repeatCount > 0 && (
+            <span style={{
+              padding: '3px 8px',
+              borderRadius: 'var(--radius-full)',
+              background: 'var(--danger-light)',
+              color: 'var(--danger)',
+              fontSize: '11px',
+              fontWeight: 800
+            }}>
+              +{repeatCount} qayta
+            </span>
+          )}
+          <div style={{
+            padding: '4px 12px',
+            borderRadius: 'var(--radius-full)',
+            background: 'var(--primary-100)',
+            color: 'var(--primary)',
+            fontSize: '13px',
+            fontWeight: 800
+          }}>
+            {currentIndex + 1}/{sessionDeck.length}
+          </div>
         </div>
       </div>
 
@@ -611,7 +667,7 @@ export const ReviewSession = ({ onFinish }) => {
 
           {quizIsAnswered && (
             <button
-              onClick={nextStep}
+              onClick={() => nextStep()}
               style={{
                 marginTop: '24px',
                 padding: '16px',
@@ -698,7 +754,7 @@ export const ReviewSession = ({ onFinish }) => {
               ) : (
                 <button
                   type="button"
-                  onClick={nextStep}
+                  onClick={() => nextStep()}
                   style={{
                     padding: '15px',
                     borderRadius: 'var(--radius-md)',

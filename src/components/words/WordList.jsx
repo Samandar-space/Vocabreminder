@@ -12,12 +12,13 @@ export const WordList = ({ onOpenAddModal }) => {
   const { words, toggleFavorite, deleteWord, editWord, showToast } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState('all'); // 'all' | 'due' | 'favorite' | tag
+  const [activeFilter, setActiveFilter] = useState('all'); // 'all' | 'due' | 'favorite' | 'box_1'..'box_5' | tag
   const [isBackupOpen, setIsBackupOpen] = useState(false);
 
   // Modals inside word list: 'detail' | 'edit' | null
   const [activeModal, setActiveModal] = useState(null);
   const [selectedWord, setSelectedWord] = useState(null);
+  const [wordToDelete, setWordToDelete] = useState(null);
 
   // Edit form state
   const [editEnglish, setEditEnglish] = useState('');
@@ -26,23 +27,35 @@ export const WordList = ({ onOpenAddModal }) => {
   const [editNote, setEditNote] = useState('');
   const [editTag, setEditTag] = useState('');
 
-  // Extract unique tags from words
-  const allTags = Array.from(new Set(words.map(w => w.tag?.trim()).filter(Boolean)));
+  // Extract unique tags from words (supports both string tag and tags array)
+  const allTags = Array.from(new Set(
+    words.flatMap(w => {
+      if (Array.isArray(w.tags)) return w.tags;
+      if (typeof w.tag === 'string' && w.tag.trim()) return [w.tag.trim()];
+      return [];
+    }).filter(Boolean)
+  ));
 
   // Filtering
   const filteredWords = words.filter(item => {
-    // Search match
+    // Safe Search match
     const q = searchQuery.toLowerCase().trim();
-    const matchesSearch = !q || item.word.toLowerCase().includes(q) || item.translation.toLowerCase().includes(q);
+    const w = (item.word || '').toLowerCase();
+    const t = (item.translation || '').toLowerCase();
+    const matchesSearch = !q || w.includes(q) || t.includes(q);
 
     // Pill filter match
     let matchesFilter = true;
     if (activeFilter === 'due') {
-      matchesFilter = new Date(item.nextReviewDate) <= new Date();
+      matchesFilter = new Date(item.nextReviewDate || 0) <= new Date();
     } else if (activeFilter === 'favorite') {
-      matchesFilter = item.isFavorite;
+      matchesFilter = !!item.isFavorite;
+    } else if (activeFilter.startsWith('box_')) {
+      const boxNum = parseInt(activeFilter.split('_')[1], 10);
+      matchesFilter = (item.box || 1) === boxNum;
     } else if (activeFilter !== 'all') {
-      matchesFilter = item.tag === activeFilter;
+      const itemTags = Array.isArray(item.tags) ? item.tags : [item.tag];
+      matchesFilter = itemTags.includes(activeFilter);
     }
 
     return matchesSearch && matchesFilter;
@@ -79,10 +92,11 @@ export const WordList = ({ onOpenAddModal }) => {
     setActiveModal(null);
   };
 
-  // Delete
-  const handleDelete = (id) => {
-    if (window.confirm('Bu so\'zni rostdan ham o\'chirmoqchimisiz?')) {
-      deleteWord(id);
+  // Confirm and Execute Delete
+  const handleConfirmDelete = () => {
+    if (wordToDelete) {
+      deleteWord(wordToDelete.id);
+      setWordToDelete(null);
       setActiveModal(null);
     }
   };
@@ -138,9 +152,14 @@ export const WordList = ({ onOpenAddModal }) => {
       {/* Filter Pills */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '18px', overflowX: 'auto', paddingBottom: '4px' }}>
         {[
-          { id: 'all', label: 'Barchasi' },
-          { id: 'due', label: 'Takrorlash kerak' },
-          { id: 'favorite', label: 'Sevimli' },
+          { id: 'all', label: `Barchasi (${words.length})` },
+          { id: 'due', label: `Takrorlash kerak (${words.filter(w => new Date(w.nextReviewDate) <= new Date()).length})` },
+          { id: 'favorite', label: `Sevimli (${words.filter(w => w.isFavorite).length})` },
+          { id: 'box_1', label: `1-quti: Yangi (${words.filter(w => (w.box || 1) === 1).length})` },
+          { id: 'box_2', label: `2-quti (${words.filter(w => w.box === 2).length})` },
+          { id: 'box_3', label: `3-quti (${words.filter(w => w.box === 3).length})` },
+          { id: 'box_4', label: `4-quti (${words.filter(w => w.box === 4).length})` },
+          { id: 'box_5', label: `5-quti: Yodlangan (${words.filter(w => w.box === 5).length})` },
           ...allTags.map(t => ({ id: t, label: `#${t.replace(/^#/, '')}` }))
         ].map(pill => {
           const isActive = activeFilter === pill.id;
@@ -237,9 +256,10 @@ export const WordList = ({ onOpenAddModal }) => {
             return (
               <div
                 key={item.id}
+                className="card-interactive"
                 style={{
                   padding: '14px 16px',
-                  borderRadius: 'var(--radius-md)',
+                  borderRadius: 'var(--radius-lg)',
                   background: 'var(--bg-surface)',
                   border: '1px solid var(--border-subtle)',
                   display: 'flex',
@@ -258,6 +278,7 @@ export const WordList = ({ onOpenAddModal }) => {
                     {/* Audio TTS Icon */}
                     <button
                       type="button"
+                      className="btn-press"
                       onClick={(e) => { e.stopPropagation(); speechService.speak(item.word); }}
                       style={{ color: 'var(--primary)', padding: '2px', display: 'flex', alignItems: 'center' }}
                       title="Talaffuzni eshitish"
@@ -516,7 +537,7 @@ export const WordList = ({ onOpenAddModal }) => {
                 <Edit3 size={16} /> Tahrirlash
               </button>
               <button
-                onClick={() => handleDelete(selectedWord.id)}
+                onClick={() => setWordToDelete(selectedWord)}
                 style={{
                   padding: '13px',
                   borderRadius: 'var(--radius-md)',
@@ -619,7 +640,7 @@ export const WordList = ({ onOpenAddModal }) => {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '10px', marginTop: '10px' }}>
                 <button
                   type="button"
-                  onClick={() => handleDelete(selectedWord.id)}
+                  onClick={() => setWordToDelete(selectedWord)}
                   style={{ padding: '12px', borderRadius: 'var(--radius-md)', background: 'var(--danger-light)', color: 'var(--danger)', fontWeight: 700, fontSize: '14px' }}
                 >
                   O'chirish
@@ -632,6 +653,85 @@ export const WordList = ({ onOpenAddModal }) => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 3. In-App Delete Confirmation Modal (Replaces window.confirm) */}
+      {wordToDelete && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.65)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '20px'
+        }}>
+          <div style={{
+            background: 'var(--bg-surface)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '24px',
+            maxWidth: '400px',
+            width: '100%',
+            boxShadow: 'var(--shadow-xl)',
+            border: '1px solid var(--border-subtle)',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              width: '52px',
+              height: '52px',
+              borderRadius: '50%',
+              background: 'var(--danger-light)',
+              color: 'var(--danger)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 16px auto'
+            }}>
+              <Trash2 size={26} />
+            </div>
+
+            <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '18px', fontWeight: 800, marginBottom: '6px' }}>
+              So'zni o'chirish
+            </h3>
+            <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '20px', lineHeight: 1.5 }}>
+              Haqiqatdan ham <strong>"{wordToDelete.word}"</strong> so'zini lug'atingizdan o'chirmoqchimisiz?
+            </p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => setWordToDelete(null)}
+                style={{
+                  padding: '12px',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--bg-subtle)',
+                  color: 'var(--text-primary)',
+                  fontWeight: 700,
+                  fontSize: '14px'
+                }}
+              >
+                Bekor qilish
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                style={{
+                  padding: '12px',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--danger)',
+                  color: '#FFFFFF',
+                  fontWeight: 700,
+                  fontSize: '14px',
+                  boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)'
+                }}
+              >
+                Ha, o'chirish
+              </button>
+            </div>
           </div>
         </div>
       )}

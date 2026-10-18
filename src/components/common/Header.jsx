@@ -124,12 +124,12 @@ export const Header = ({ onNotificationClick, onOpenAddModal, onOpenSearch }) =>
         {onOpenAddModal && (
           <button
             onClick={onOpenAddModal}
-            className="desktop-only"
+            className="desktop-only btn-press"
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              padding: '8px 16px',
+              padding: '8px 18px',
               borderRadius: 'var(--radius-full)',
               background: 'var(--primary-gradient)',
               color: '#FFFFFF',
@@ -148,16 +148,17 @@ export const Header = ({ onNotificationClick, onOpenAddModal, onOpenSearch }) =>
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '4px',
+            gap: '5px',
             padding: '6px 12px',
             borderRadius: 'var(--radius-full)',
-            background: 'var(--danger-light)',
+            background: streak.count > 0 ? 'linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%)' : 'var(--bg-subtle)',
             color: 'var(--danger)',
             fontWeight: 800,
-            fontSize: '12px'
+            fontSize: '12px',
+            boxShadow: streak.count > 0 ? '0 2px 8px rgba(239, 68, 68, 0.15)' : 'none'
           }}
         >
-          <Flame size={15} />
+          <Flame size={15} color="#EF4444" className={streak.count > 0 ? 'animate-float' : ''} />
           <span>{streak.count} kun</span>
         </div>
 
@@ -165,6 +166,7 @@ export const Header = ({ onNotificationClick, onOpenAddModal, onOpenSearch }) =>
         <button
           onClick={() => setCurrentTab('market')}
           title="Bozor va Coinlar"
+          className="btn-press"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -187,7 +189,7 @@ export const Header = ({ onNotificationClick, onOpenAddModal, onOpenSearch }) =>
         <button
           onClick={toggleTheme}
           title="Mavzuni almashtirish"
-          className="mobile-only"
+          className="mobile-only btn-press"
           style={{
             width: '36px',
             height: '36px',
@@ -206,6 +208,7 @@ export const Header = ({ onNotificationClick, onOpenAddModal, onOpenSearch }) =>
         <button
           onClick={onNotificationClick}
           title="Bildirishnomalar va Tezkor savol"
+          className="btn-press"
           style={{
             width: '38px',
             height: '38px',
@@ -219,15 +222,18 @@ export const Header = ({ onNotificationClick, onOpenAddModal, onOpenSearch }) =>
           }}
         >
           <Bell size={18} />
-          <span style={{
-            position: 'absolute',
-            top: '8px',
-            right: '8px',
-            width: '8px',
-            height: '8px',
-            borderRadius: '50%',
-            background: 'var(--primary)'
-          }}></span>
+          <span 
+            className="pulse-badge"
+            style={{
+              position: 'absolute',
+              top: '8px',
+              right: '8px',
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              background: 'var(--primary)'
+            }}
+          ></span>
         </button>
       </div>
     </header>

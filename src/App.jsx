@@ -7,6 +7,7 @@ import { MoreMenuModal } from './components/common/MoreMenuModal';
 import { GlobalSearchModal } from './components/common/GlobalSearchModal';
 import { Toast } from './components/common/Toast';
 import { OfflineBanner } from './components/common/OfflineBanner';
+import { Plus } from 'lucide-react';
 
 // Auth & Onboarding
 import { AuthFlow } from './components/auth/AuthFlow';
@@ -34,6 +35,7 @@ import { GameZone } from './components/games/GameZone';
 import { AddWordModal } from './components/words/AddWordModal';
 import { BackupModal } from './components/words/BackupModal';
 import { NotificationSimulator } from './components/notifications/NotificationSimulator';
+import { QuickPopupQuizModal } from './components/notifications/QuickPopupQuizModal';
 
 const MainAppContent = () => {
   const { user, currentTab, setCurrentTab } = useApp();
@@ -45,6 +47,8 @@ const MainAppContent = () => {
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [isBackupOpen, setIsBackupOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isQuickQuizOpen, setIsQuickQuizOpen] = useState(false);
+  const [quickQuizWordId, setQuickQuizWordId] = useState(null);
 
   // Global Ctrl+K / Cmd+K listener
   useEffect(() => {
@@ -58,12 +62,36 @@ const MainAppContent = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Listen for ?popup=quiz query param and Service Worker messages
+  useEffect(() => {
+    // 1. Check URL parameters (e.g. from notification click)
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('popup') === 'quiz') {
+      const wordId = params.get('wordId');
+      if (wordId) setQuickQuizWordId(wordId);
+      setIsQuickQuizOpen(true);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    // 2. Listen for postMessage from active Service Worker
+    if ('serviceWorker' in navigator) {
+      const handleSwMessage = (event) => {
+        if (event.data && event.data.type === 'OPEN_QUICK_QUIZ') {
+          if (event.data.wordId) setQuickQuizWordId(event.data.wordId);
+          setIsQuickQuizOpen(true);
+        }
+      };
+      navigator.serviceWorker.addEventListener('message', handleSwMessage);
+      return () => navigator.serviceWorker.removeEventListener('message', handleSwMessage);
+    }
+  }, []);
+
   // 1. If user is not authenticated -> show AuthFlow in centered card
   if (!user.isAuth) {
     return (
       <div className="auth-centered-wrapper">
         <div className="auth-card">
-          <AuthFlow onComplete={() => {}} />
+          <AuthFlow onComplete={() => setCurrentTab('home')} />
         </div>
         <Toast />
       </div>
@@ -125,6 +153,7 @@ const MainAppContent = () => {
               onOpenAddModal={() => setIsAddWordOpen(true)}
               onStartReview={() => setCurrentTab('review')}
               onStartMiniTest={() => setIsMiniTestOpen(true)}
+              onStartQuickQuiz={() => setIsQuickQuizOpen(true)}
             />
           )}
 
@@ -173,6 +202,18 @@ const MainAppContent = () => {
           )}
         </main>
 
+        {/* Mobile Floating Action Button (Quick Add Word) */}
+        {(currentTab === 'home' || currentTab === 'words') && (
+          <button 
+            className="mobile-fab btn-press"
+            onClick={() => setIsAddWordOpen(true)}
+            aria-label="Yangi so'z qo'shish"
+            title="Yangi so'z qo'shish"
+          >
+            <Plus size={28} strokeWidth={2.6} />
+          </button>
+        )}
+
         {/* Bottom Navigation (Only visible on mobile screens < 768px) */}
         <BottomNav onOpenMoreMenu={() => setIsMoreMenuOpen(true)} />
       </div>
@@ -186,6 +227,16 @@ const MainAppContent = () => {
       <NotificationSimulator
         isOpen={isNotificationOpen}
         onClose={() => setIsNotificationOpen(false)}
+        onOpenQuickQuiz={() => setIsQuickQuizOpen(true)}
+      />
+
+      <QuickPopupQuizModal
+        isOpen={isQuickQuizOpen}
+        onClose={() => {
+          setIsQuickQuizOpen(false);
+          setQuickQuizWordId(null);
+        }}
+        initialWordId={quickQuizWordId}
       />
 
       <MoreMenuModal

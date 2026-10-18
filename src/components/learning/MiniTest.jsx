@@ -2,6 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { ArrowLeft, Award, CheckCircle2, XCircle, RotateCw, Plus, HelpCircle } from 'lucide-react';
 
+const FALLBACK_DISTRACTORS = [
+  'Vaqtinchalik, o‘tkinchi',
+  'Hamma joyda uchraydigan',
+  'Tirishqoq, g‘ayratli',
+  'Amaliy, realistik',
+  'Chidamli, bardoshli',
+  'Notiq, gapga chechan',
+  'Har tomonlama, to‘liq',
+  'Yangilik kirituvchi, ilg‘or',
+  'O‘ta e’tiborli, sinchkov',
+  'Keng qamrovli, batafsil'
+];
+
 export const MiniTest = ({ onClose, onOpenAddWord }) => {
   const { words, addCoins, showToast } = useApp();
 
@@ -18,9 +31,21 @@ export const MiniTest = ({ onClose, onOpenAddWord }) => {
 
   useEffect(() => {
     if (!activeWord || words.length < 2) return;
-    const correct = activeWord.translation;
-    const others = words.filter(w => w.id !== activeWord.id).map(w => w.translation);
-    const shuffledOthers = [...others].sort(() => 0.5 - Math.random()).slice(0, 3);
+    const correct = (activeWord.translation || '').trim();
+    const uniqueOthers = Array.from(new Set(
+      words
+        .filter(w => w.id !== activeWord.id && (w.translation || '').trim().toLowerCase() !== correct.toLowerCase())
+        .map(w => (w.translation || '').trim())
+    ));
+
+    for (const fb of FALLBACK_DISTRACTORS) {
+      if (uniqueOthers.length >= 3) break;
+      if (fb.toLowerCase() !== correct.toLowerCase() && !uniqueOthers.includes(fb)) {
+        uniqueOthers.push(fb);
+      }
+    }
+
+    const shuffledOthers = [...uniqueOthers].sort(() => 0.5 - Math.random()).slice(0, 3);
     const all = [correct, ...shuffledOthers].sort(() => 0.5 - Math.random());
     setOptions(all);
     setSelectedOpt(null);

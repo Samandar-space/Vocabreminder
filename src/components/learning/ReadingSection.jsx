@@ -86,12 +86,21 @@ export const ReadingSection = ({ onBack }) => {
 
   // Timer interval
   useEffect(() => {
-    let interval = null;
-    if (isTimerRunning && secondsLeft > 0) {
-      interval = setInterval(() => setSecondsLeft(prev => prev - 1), 1000);
-    }
+    if (!isTimerRunning) return;
+    const interval = setInterval(() => {
+      setSecondsLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          setIsTimerRunning(false);
+          setScreen('result');
+          showToast('Vaqt tugadi! Natijangiz hisoblandi.', 'info');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
     return () => clearInterval(interval);
-  }, [isTimerRunning, secondsLeft]);
+  }, [isTimerRunning, showToast]);
 
   // Format MM:SS
   const formatTime = (secs) => {
@@ -344,14 +353,23 @@ export const ReadingSection = ({ onBack }) => {
               fontWeight: 900,
               margin: '0 auto 12px auto'
             }}>
-              {Object.keys(userAnswers).filter(k => userAnswers[k] === selectedArticle.questions[k].correct).length} / {selectedArticle.questions.length}
+              {Object.keys(userAnswers).filter(k => userAnswers[k] === selectedArticle.questions[k]?.correct).length} / {selectedArticle.questions.length}
             </div>
-            <h3 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '4px' }}>
-              80% To'g'ri javob!
-            </h3>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-              Ajoyib ko'rsatkich, yana bir oz harakat qiling!
-            </p>
+            {(() => {
+              const correctCount = Object.keys(userAnswers).filter(k => userAnswers[k] === selectedArticle.questions[k]?.correct).length;
+              const totalQ = selectedArticle.questions.length || 1;
+              const percent = Math.round((correctCount / totalQ) * 100);
+              return (
+                <>
+                  <h3 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '4px' }}>
+                    {percent}% To'g'ri javob!
+                  </h3>
+                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                    {percent >= 80 ? 'Ajoyib ko\'rsatkich, yuqori natija!' : percent >= 50 ? 'Yaxshi natija, yana bir oz mashq qiling!' : 'Qayta o\'qib chiqishni tavsiya qilamiz!'}
+                  </p>
+                </>
+              );
+            })()}
           </div>
 
           {/* Savollar tahlili */}
@@ -414,21 +432,36 @@ export const ReadingSection = ({ onBack }) => {
             </div>
           </div>
 
-          <button
-            onClick={() => setScreen('list')}
-            style={{
-              padding: '15px',
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--primary-gradient)',
-              color: '#FFFFFF',
-              fontWeight: 700,
-              fontSize: '15px',
-              boxShadow: 'var(--shadow-primary)',
-              marginTop: '10px'
-            }}
-          >
-            Bosh sahifaga qaytish
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
+            <button
+              onClick={() => setScreen('list')}
+              style={{
+                padding: '14px',
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--primary-gradient)',
+                color: '#FFFFFF',
+                fontWeight: 700,
+                fontSize: '15px',
+                boxShadow: 'var(--shadow-primary)'
+              }}
+            >
+              Boshqa matn tanlash
+            </button>
+            <button
+              onClick={onBack}
+              style={{
+                padding: '13px',
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--bg-subtle)',
+                color: 'var(--text-secondary)',
+                border: '1px solid var(--border-subtle)',
+                fontWeight: 600,
+                fontSize: '14px'
+              }}
+            >
+              Bosh sahifaga qaytish
+            </button>
+          </div>
         </div>
       )}
 

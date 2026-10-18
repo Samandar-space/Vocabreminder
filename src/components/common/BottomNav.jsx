@@ -43,44 +43,55 @@ export const BottomNav = ({ onOpenMoreMenu }) => {
                 setCurrentTab(item.id);
               }
             }}
+            className="btn-press"
             style={{
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: '3px',
-              padding: '6px 10px',
-              borderRadius: 'var(--radius-md)',
+              gap: '4px',
+              padding: '6px 12px',
+              borderRadius: 'var(--radius-lg)',
               background: isActive ? 'var(--primary-100)' : 'transparent',
               color: isActive ? 'var(--primary)' : 'var(--text-tertiary)',
-              transition: 'all var(--transition-fast)',
+              transition: 'all var(--transition-normal)',
               position: 'relative',
-              flex: 1
+              flex: 1,
+              transform: isActive ? 'translateY(-1px)' : 'none'
             }}
           >
             <div style={{ position: 'relative' }}>
-              <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+              <Icon size={21} strokeWidth={isActive ? 2.5 : 1.9} />
               {item.badge && (
-                <span style={{
-                  position: 'absolute',
-                  top: '-4px',
-                  right: '-8px',
-                  background: 'var(--danger)',
-                  color: '#FFFFFF',
-                  fontSize: '10px',
-                  fontWeight: 800,
-                  width: '16px',
-                  height: '16px',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
+                <span 
+                  className="pulse-badge"
+                  style={{
+                    position: 'absolute',
+                    top: '-5px',
+                    right: '-9px',
+                    background: 'var(--danger)',
+                    color: '#FFFFFF',
+                    fontSize: '10px',
+                    fontWeight: 900,
+                    minWidth: '17px',
+                    height: '17px',
+                    padding: '0 4px',
+                    borderRadius: 'var(--radius-full)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 2px 6px rgba(239, 68, 68, 0.4)'
+                  }}
+                >
                   {item.badge}
                 </span>
               )}
             </div>
 
-            <span style={{ fontSize: '11px', fontWeight: isActive ? 800 : 600 }}>
+            <span style={{ 
+              fontSize: '11px', 
+              fontWeight: isActive ? 800 : 600,
+              letterSpacing: '-0.2px'
+            }}>
               {item.label}
             </span>
           </button>

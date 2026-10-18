@@ -37,7 +37,7 @@ export const GlobalSearchModal = ({ isOpen, onClose, onOpenAddModal, onOpenBacku
 
   // Search Words
   const matchedWords = cleanQ
-    ? words.filter(w => w.word.toLowerCase().includes(cleanQ) || w.translation.toLowerCase().includes(cleanQ)).slice(0, 5)
+    ? words.filter(w => (w.word || '').toLowerCase().includes(cleanQ) || (w.translation || '').toLowerCase().includes(cleanQ)).slice(0, 5)
     : [];
 
   // Quick Navigation Commands

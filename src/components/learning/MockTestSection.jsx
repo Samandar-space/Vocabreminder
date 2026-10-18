@@ -5,21 +5,84 @@ import {
   X, BarChart3, ChevronRight, Award 
 } from 'lucide-react';
 
+const READING_MOCK_QUESTIONS = [
+  {
+    id: 1,
+    q: 'What optimizes synaptic plasticity according to the passage?',
+    options: ['Immediate repetition', 'Active reconstruction through spaced intervals', 'Passive reading', 'Sleep deprivation'],
+    correct: 1
+  },
+  {
+    id: 2,
+    q: 'What are the primary stages of the human cognitive architecture mentioned?',
+    options: ['Input, storage, deletion', 'Encoding, consolidation, and retrieval', 'Perception, emotion, reaction', 'Scanning, skimming, memorizing'],
+    correct: 1
+  },
+  {
+    id: 3,
+    q: 'The term "synaptic plasticity" in paragraph 1 most closely refers to:',
+    options: ['The brain\'s ability to adapt and strengthen connections', 'Artificial implants in the skull', 'Rigid memory retention', 'Temporary loss of focus'],
+    correct: 0
+  },
+  {
+    id: 4,
+    q: 'Why is passive re-reading considered suboptimal for long-term retention?',
+    options: ['It consumes too much glucose', 'It creates an illusion of competence without deep encoding', 'It damages neural pathways', 'It requires physical notes'],
+    correct: 1
+  },
+  {
+    id: 5,
+    q: 'Which learning methodology aligns best with the author\'s argument?',
+    options: ['Cramming the night before an exam', 'Retrieval practice distributed over increasing intervals', 'Listening to audio while asleep', 'Highlighting entire pages in textbooks'],
+    correct: 1
+  },
+  {
+    id: 6,
+    q: 'According to researchers, what role does sleep play in consolidation?',
+    options: ['It stabilizes freshly encoded lexical items with the neocortex', 'It resets memory to zero every night', 'It only benefits motor skills', 'It replaces the need for practice'],
+    correct: 0
+  },
+  {
+    id: 7,
+    q: 'The phrase "illusion of competence" implies that learners:',
+    options: ['Overestimate their true mastery of the material', 'Are genuinely expert scholars', 'Have photographic memory', 'Cannot read effectively'],
+    correct: 0
+  },
+  {
+    id: 8,
+    q: 'What is recommended when attempting to acquire linguistic durability?',
+    options: ['Passive re-reading of vocabulary lists', 'Deliberate retrieval practice across calibrated time gaps', 'Abandoning difficult vocabulary', 'Short-term episodic cramming'],
+    correct: 1
+  },
+  {
+    id: 9,
+    q: 'The hippocampus coordinates with which brain region during rest intervals?',
+    options: ['The spinal cord', 'The neocortex', 'The optical nerve', 'The auditory canal'],
+    correct: 1
+  },
+  {
+    id: 10,
+    q: 'What is the primary objective of the passage?',
+    options: ['Entertainment storytelling', 'Scientific explanation of memory retention and retrieval practice', 'Satirical commentary on schools', 'A commercial advertisement for software'],
+    correct: 1
+  }
+];
+
 export const MockTestSection = ({ onBack }) => {
   const { user, addCoins, showToast } = useApp();
 
   // Screen: 'overview' | 'test' | 'report'
   const [screen, setScreen] = useState('overview');
   
-  // Difficulty level selection (user requested: A2, B1, B2, C1, C2 or IELTS)
+  // Difficulty level selection
   const [selectedDifficulty, setSelectedDifficulty] = useState(user.goal === 'ielts' ? 'IELTS Academic' : 'B2');
   
   // Timer state (60 minutes = 3600 seconds)
-  const [timeLeft, setTimeLeft] = useState(2852); // ~47:32
+  const [timeLeft, setTimeLeft] = useState(3600);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
 
   // Active section in test
-  const [activeSection, setActiveSection] = useState('reading'); // 'reading' | 'writing'
+  const [activeSection, setActiveSection] = useState('reading');
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(1);
   const [answers, setAnswers] = useState({});
 
@@ -28,12 +91,22 @@ export const MockTestSection = ({ onBack }) => {
 
   // Timer countdown
   useEffect(() => {
-    let interval = null;
-    if (isTimerRunning && timeLeft > 0) {
-      interval = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
-    }
+    if (!isTimerRunning) return;
+    const interval = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          setIsTimerRunning(false);
+          setShowSubmitModal(false);
+          setScreen('report');
+          showToast('Vaqt tugadi! Mock test topshirildi.', 'info');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
     return () => clearInterval(interval);
-  }, [isTimerRunning, timeLeft]);
+  }, [isTimerRunning, showToast]);
 
   const formatTimer = (seconds) => {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
@@ -43,7 +116,7 @@ export const MockTestSection = ({ onBack }) => {
 
   // Start Mock Test
   const handleStartTest = () => {
-    setTimeLeft(2852);
+    setTimeLeft(3600);
     setIsTimerRunning(true);
     setCurrentQuestionIdx(1);
     setAnswers({});
@@ -59,7 +132,7 @@ export const MockTestSection = ({ onBack }) => {
     showToast('Mock test topshirildi!', 'success');
   };
 
-  const unansweredCount = 10 - Object.keys(answers).length;
+  const unansweredCount = READING_MOCK_QUESTIONS.length - Object.keys(answers).length;
 
   return (
     <div style={{ padding: '20px', minHeight: '85vh', position: 'relative' }}>
@@ -270,39 +343,44 @@ export const MockTestSection = ({ onBack }) => {
             </div>
 
             {/* Question */}
-            <div style={{
-              padding: '16px',
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--bg-surface)',
-              border: '1.5px solid var(--border-subtle)',
-              marginBottom: '16px'
-            }}>
-              <div style={{ fontSize: '14px', fontWeight: 800, marginBottom: '12px' }}>
-                {currentQuestionIdx}. What optimizes synaptic plasticity according to the passage?
-              </div>
-
-              {['Immediate repetition', 'Active reconstruction through spaced intervals', 'Passive reading', 'Sleep deprivation'].map((opt, i) => {
-                const isSelected = answers[currentQuestionIdx] === i;
-                return (
-                  <div
-                    key={i}
-                    onClick={() => setAnswers(prev => ({ ...prev, [currentQuestionIdx]: i }))}
-                    style={{
-                      padding: '10px 14px',
-                      borderRadius: 'var(--radius-sm)',
-                      border: `1.5px solid ${isSelected ? 'var(--primary)' : 'var(--border-subtle)'}`,
-                      background: isSelected ? 'var(--primary-50)' : 'var(--bg-surface)',
-                      marginBottom: '8px',
-                      fontSize: '13px',
-                      fontWeight: 600,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {opt}
+            {(() => {
+              const currentQ = READING_MOCK_QUESTIONS[currentQuestionIdx - 1] || READING_MOCK_QUESTIONS[0];
+              return (
+                <div style={{
+                  padding: '16px',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--bg-surface)',
+                  border: '1.5px solid var(--border-subtle)',
+                  marginBottom: '16px'
+                }}>
+                  <div style={{ fontSize: '14px', fontWeight: 800, marginBottom: '12px' }}>
+                    {currentQuestionIdx}. {currentQ.q}
                   </div>
-                );
-              })}
-            </div>
+
+                  {currentQ.options.map((opt, i) => {
+                    const isSelected = answers[currentQuestionIdx] === i;
+                    return (
+                      <div
+                        key={i}
+                        onClick={() => setAnswers(prev => ({ ...prev, [currentQuestionIdx]: i }))}
+                        style={{
+                          padding: '10px 14px',
+                          borderRadius: 'var(--radius-sm)',
+                          border: `1.5px solid ${isSelected ? 'var(--primary)' : 'var(--border-subtle)'}`,
+                          background: isSelected ? 'var(--primary-50)' : 'var(--bg-surface)',
+                          marginBottom: '8px',
+                          fontSize: '13px',
+                          fontWeight: 600,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {opt}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
 
             {/* Bottom 1..10 Question Navigator */}
             <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '6px', marginBottom: '14px' }}>
@@ -439,73 +517,101 @@ export const MockTestSection = ({ onBack }) => {
           </div>
 
           {/* Overall Band Score Card */}
-          <div style={{
-            borderRadius: 'var(--radius-lg)',
-            background: 'var(--bg-surface)',
-            border: '1.5px solid var(--border-subtle)',
-            padding: '24px 20px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            boxShadow: 'var(--shadow-sm)'
-          }}>
-            <div>
-              <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Taxminiy natijangiz</div>
-              <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>
-                Overall Band Score
-              </div>
-              <div style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: 700, marginTop: '2px' }}>
-                Daraja: {selectedDifficulty}
-              </div>
-            </div>
+          {(() => {
+            const correctCount = READING_MOCK_QUESTIONS.filter((q, idx) => answers[idx + 1] === q.correct).length;
+            const percent = Math.round((correctCount / READING_MOCK_QUESTIONS.length) * 100);
+            
+            let displayScore = '6.5';
+            let label = 'Overall Band Score';
+            if (user.goal === 'ielts') {
+              if (correctCount >= 9) displayScore = '8.5';
+              else if (correctCount >= 7) displayScore = '7.5';
+              else if (correctCount >= 5) displayScore = '6.5';
+              else if (correctCount >= 3) displayScore = '5.5';
+              else if (correctCount >= 1) displayScore = '4.5';
+              else displayScore = '3.5';
+            } else {
+              label = 'CEFR Umumiy Daraja';
+              if (correctCount >= 9) displayScore = 'C1';
+              else if (correctCount >= 7) displayScore = 'B2';
+              else if (correctCount >= 5) displayScore = 'B1';
+              else if (correctCount >= 3) displayScore = 'A2';
+              else displayScore = 'A1';
+            }
 
-            <div style={{
-              width: '64px',
-              height: '64px',
-              borderRadius: '50%',
-              background: 'var(--primary)',
-              color: '#FFFFFF',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '22px',
-              fontWeight: 900,
-              boxShadow: 'var(--shadow-primary)'
-            }}>
-              6.5
-            </div>
-          </div>
+            return (
+              <>
+                <div style={{
+                  borderRadius: 'var(--radius-lg)',
+                  background: 'var(--bg-surface)',
+                  border: '1.5px solid var(--border-subtle)',
+                  padding: '24px 20px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  boxShadow: 'var(--shadow-sm)'
+                }}>
+                  <div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Natijangiz ({correctCount}/{READING_MOCK_QUESTIONS.length} to'g'ri)</div>
+                    <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                      {label}
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: 700, marginTop: '2px' }}>
+                      Rejim: {selectedDifficulty} ({percent}%)
+                    </div>
+                  </div>
 
-          {/* Section Bands */}
-          <div style={{
-            borderRadius: 'var(--radius-lg)',
-            background: 'var(--bg-surface)',
-            border: '1px solid var(--border-subtle)',
-            padding: '16px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px'
-          }}>
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '4px' }}>
-                <span style={{ fontWeight: 700 }}>Reading (32/40)</span>
-                <strong style={{ color: 'var(--primary)' }}>Band 6.5</strong>
-              </div>
-              <div style={{ width: '100%', height: '6px', background: 'var(--bg-subtle)', borderRadius: '3px' }}>
-                <div style={{ width: '75%', height: '100%', background: 'var(--primary)', borderRadius: '3px' }} />
-              </div>
-            </div>
+                  <div style={{
+                    minWidth: '64px',
+                    height: '64px',
+                    padding: '0 12px',
+                    borderRadius: '50%',
+                    background: 'var(--primary-gradient)',
+                    color: '#FFFFFF',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '22px',
+                    fontWeight: 900,
+                    boxShadow: 'var(--shadow-primary)'
+                  }}>
+                    {displayScore}
+                  </div>
+                </div>
 
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '4px' }}>
-                <span style={{ fontWeight: 700 }}>Writing (2 ta topshiriq)</span>
-                <strong style={{ color: 'var(--primary)' }}>Band 6.0</strong>
-              </div>
-              <div style={{ width: '100%', height: '6px', background: 'var(--bg-subtle)', borderRadius: '3px' }}>
-                <div style={{ width: '65%', height: '100%', background: 'var(--primary)', borderRadius: '3px' }} />
-              </div>
-            </div>
-          </div>
+                {/* Section Bands */}
+                <div style={{
+                  borderRadius: 'var(--radius-lg)',
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  padding: '16px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px'
+                }}>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '4px' }}>
+                      <span style={{ fontWeight: 700 }}>Reading ({correctCount}/{READING_MOCK_QUESTIONS.length})</span>
+                      <strong style={{ color: 'var(--primary)' }}>{user.goal === 'ielts' ? `Band ${displayScore}` : displayScore}</strong>
+                    </div>
+                    <div style={{ width: '100%', height: '6px', background: 'var(--bg-subtle)', borderRadius: '3px' }}>
+                      <div style={{ width: `${percent}%`, height: '100%', background: 'var(--primary)', borderRadius: '3px', transition: 'width 0.5s ease' }} />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '4px' }}>
+                      <span style={{ fontWeight: 700 }}>Writing (2 ta topshiriq)</span>
+                      <strong style={{ color: 'var(--primary)' }}>{user.goal === 'ielts' ? 'Band 6.5' : 'B2'}</strong>
+                    </div>
+                    <div style={{ width: '100%', height: '6px', background: 'var(--bg-subtle)', borderRadius: '3px' }}>
+                      <div style={{ width: '65%', height: '100%', background: 'var(--primary)', borderRadius: '3px' }} />
+                    </div>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
 
           {/* Strengths & Improvements */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>

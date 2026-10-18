@@ -36,7 +36,7 @@ VocabReminder — bu tayyor so‘zlar bazasi **EMAS**.
 - Internet o‘chib qolsa ham ilova to‘liq ishlaydi.
 
 ### 5. 🎯 Qo‘shimcha Bo‘limlar
-- **Level Placement Test:** 20 ta bosqichma-bosqich savoldan iborat daraja aniqlash testi.
+- **Level Placement Test (A1–C2):** 15 ta bosqichma-bosqich savoldan iborat rasmiy CEFR daraja aniqlash testi va savollar tahlili.
 - **Reading Section:** Savol-javobli va tushuntirishli matnlar.
 - **Gamifikatsiya & Do‘kon:** Har bir takrorlangan va qo‘shilgan so‘z uchun tangalar (coinlar), sovg‘alar.
 - **Tungi / Kunduzgi rejim (Dark / Light mode).**

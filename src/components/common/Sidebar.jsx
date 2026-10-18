@@ -32,7 +32,7 @@ export const Sidebar = ({ onOpenAddModal, onOpenBackup }) => {
         { id: 'writing', label: 'AI Writing Checker', icon: PenTool, badge: 'AI', badgeColor: 'var(--primary)' },
         { id: 'reading', label: 'Reading (O\'qish)', icon: BookOpen },
         { id: 'grammar', label: 'Grammatika', icon: GraduationCap },
-        { id: 'levelTest', label: 'Daraja Testi', icon: BarChart3, badge: '20 savol' }
+        { id: 'levelTest', label: 'Daraja Testi', icon: BarChart3, badge: 'A1–C2' }
       ]
     },
     {
@@ -105,6 +105,7 @@ export const Sidebar = ({ onOpenAddModal, onOpenBackup }) => {
       {/* User Quick Widget */}
       <div 
         onClick={() => setCurrentTab('profile')}
+        className="card-interactive btn-press"
         style={{
           margin: '14px 16px',
           padding: '12px',
@@ -114,8 +115,7 @@ export const Sidebar = ({ onOpenAddModal, onOpenBackup }) => {
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          transition: 'all var(--transition-fast)'
+          justifyContent: 'space-between'
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -157,6 +157,7 @@ export const Sidebar = ({ onOpenAddModal, onOpenBackup }) => {
       <div style={{ padding: '0 16px 10px 16px' }}>
         <button
           onClick={onOpenAddModal}
+          className="btn-press"
           style={{
             width: '100%',
             padding: '11px',
@@ -169,8 +170,7 @@ export const Sidebar = ({ onOpenAddModal, onOpenBackup }) => {
             alignItems: 'center',
             justifyContent: 'center',
             gap: '8px',
-            boxShadow: 'var(--shadow-primary)',
-            transition: 'transform var(--transition-fast)'
+            boxShadow: 'var(--shadow-primary)'
           }}
         >
           <Plus size={18} strokeWidth={2.5} /> Yangi so'z qo'shish
@@ -206,15 +206,17 @@ export const Sidebar = ({ onOpenAddModal, onOpenBackup }) => {
                         setCurrentTab(item.id);
                       }
                     }}
+                    className="btn-press"
                     style={{
                       width: '100%',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      padding: '9px 12px',
+                      padding: isActive ? '9px 12px 9px 9px' : '9px 12px',
                       borderRadius: 'var(--radius-md)',
                       background: isActive ? 'var(--primary-100)' : 'transparent',
                       color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
+                      borderLeft: isActive ? '3px solid var(--primary)' : '3px solid transparent',
                       fontWeight: isActive ? 800 : 600,
                       fontSize: '13px',
                       textAlign: 'left',

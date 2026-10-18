@@ -4,7 +4,7 @@ import { Bell, Check, Sparkles } from 'lucide-react';
 
 export const OnboardingFlow = ({ onFinish }) => {
   const [step, setStep] = useState(1);
-  const { user, setUser, showToast } = useApp();
+  const { user, updateUserProfile, showToast } = useApp();
 
   const [selectedGoal, setSelectedGoal] = useState(user.goal || 'cefr');
   const [selectedDaily, setSelectedDaily] = useState(user.dailyGoal || 20);
@@ -52,12 +52,11 @@ export const OnboardingFlow = ({ onFinish }) => {
   };
 
   const finishOnboarding = () => {
-    setUser(prev => ({
-      ...prev,
+    updateUserProfile({
       goal: selectedGoal,
       dailyGoal: selectedDaily,
       isOnboarded: true
-    }));
+    });
     showToast('Dastur sizning maqsadingizga moslashtirildi!', 'success');
     onFinish();
   };

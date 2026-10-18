@@ -1,7 +1,7 @@
 // Text-to-Speech & Speech Recognition Service using Browser Native APIs
 export const speechService = {
-  // Pronounce word with UK or US accent
-  speak(text, lang = 'en-US') {
+  // Pronounce word with UK or US accent and optional speed rate
+  speak(text, lang = 'en-US', rate = 0.9) {
     if (!('speechSynthesis' in window)) {
       console.warn('Speech synthesis not supported in this browser.');
       return false;
@@ -11,7 +11,7 @@ export const speechService = {
 
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = lang;
-    utterance.rate = 0.9; // natural comfortable pace
+    utterance.rate = rate; // natural comfortable pace (or slow for dictation)
     utterance.pitch = 1.0;
 
     // Pick a high quality natural voice if available
@@ -25,31 +25,50 @@ export const speechService = {
     return true;
   },
 
-  // Check pronunciation via Speech Recognition (if browser supports WebKitSpeechRecognition)
-  listenForSpeech(expectedWord, onResult, onError) {
+  // Check pronunciation or translation via Speech Recognition
+  listenForSpeech(expectedWords, onResult, onError, lang = 'en-US') {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      onError('Brauzeringiz ovoz yozishni qo\'llab-quvvatlamaydi (Chrome tavsiya etiladi).');
+      onError('Brauzeringiz ovoz yozishni qo\'llab-quvvatlamaydi (Chrome/Edge tavsiya etiladi).');
       return null;
     }
 
     const recognition = new SpeechRecognition();
-    recognition.lang = 'en-US';
+    recognition.lang = lang;
     recognition.interimResults = false;
-    recognition.maxAlternatives = 3;
+    recognition.maxAlternatives = 5;
+
+    // expectedWords can be a single string or an array of valid answers
+    const targetList = Array.isArray(expectedWords)
+      ? expectedWords.map(w => (w || '').trim().toLowerCase())
+      : [(expectedWords || '').trim().toLowerCase()];
 
     recognition.onresult = (event) => {
-      const heard = event.results[0][0].transcript.trim().toLowerCase();
-      const target = expectedWord.trim().toLowerCase();
-      const isCorrect = heard === target || heard.includes(target) || target.includes(heard);
+      const heard = (event.results[0][0].transcript || '').trim().toLowerCase();
+      
+      // Check if heard speech matches any target or contains it
+      const isCorrect = targetList.some(target => {
+        if (!target) return false;
+        return heard === target || heard.includes(target) || target.includes(heard);
+      });
+
       onResult({ heard, isCorrect });
     };
 
     recognition.onerror = (event) => {
+      // Don't error out on intentional abort or no-speech
+      if (event.error === 'no-speech' || event.error === 'aborted') {
+        return;
+      }
       onError(event.error || 'Ovozni eshitishda xatolik yuz berdi');
     };
 
-    recognition.start();
+    try {
+      recognition.start();
+    } catch {
+      // If already started, ignore
+    }
+
     return recognition;
   }
 };
