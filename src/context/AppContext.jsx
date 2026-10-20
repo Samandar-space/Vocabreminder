@@ -46,8 +46,13 @@ export const AppProvider = ({ children }) => {
     };
   });
 
-  // Words list (loaded from Express backend API)
-  const [words, setWords] = useState([]);
+  // Words list (Offline-first: cached locally, synced with Express REST API)
+  const [words, setWords] = useState(() => {
+    const activeUser = authService.getCurrentUser();
+    const userKey = activeUser?.id ? `vocab_words_${activeUser.id}` : storage.KEYS.WORDS;
+    const cached = storage.get(userKey, storage.get(storage.KEYS.WORDS, []));
+    return Array.isArray(cached) ? cached.map(normalizeWord) : [];
+  });
 
   // Gamification & Coins (Scoped to user)
   const [coins, setCoins] = useState(() => {
@@ -118,21 +123,42 @@ export const AppProvider = ({ children }) => {
     setToasts(prev => prev.filter(t => t.id !== id));
   };
 
-  // Load words from server on mount
+  // Load and sync words with server (Hybrid Offline-First)
   useEffect(() => {
+    let isMounted = true;
     const loadWordsFromServer = async () => {
       try {
-        const data = await getWords();
-        if (Array.isArray(data)) {
-          setWords(data.map(normalizeWord));
+        const data = await getWords(user?.id);
+        if (Array.isArray(data) && isMounted) {
+          setWords(prevLocal => {
+            const map = new Map();
+            data.forEach(w => map.set(String(w.id || w.word.toLowerCase()), normalizeWord(w)));
+            prevLocal.forEach(w => {
+              const key = String(w.id || w.word.toLowerCase());
+              if (!map.has(key)) {
+                map.set(key, w);
+              }
+            });
+            return Array.from(map.values());
+          });
         }
       } catch (err) {
-        console.error("Serverdan so'zlarni yuklashda xatolik:", err);
-        showToast("Server bilan aloqa yo'q. So'zlar yuklanmadi", 'error');
+        console.info("Server bilan aloqa yo'q (Oflayn keshdan foydalanilmoqda):", err.message);
       }
     };
     loadWordsFromServer();
-  }, []);
+    return () => { isMounted = false; };
+  }, [user?.id]);
+
+  // Sync words to local storage whenever changed
+  useEffect(() => {
+    if (words) {
+      if (user?.id) {
+        storage.set(`vocab_words_${user.id}`, words);
+      }
+      storage.set(storage.KEYS.WORDS, words);
+    }
+  }, [words, user?.id]);
 
   // Apply Theme
   useEffect(() => {
@@ -254,9 +280,10 @@ export const AppProvider = ({ children }) => {
     showToast('Tizimdan muvaffaqiyatli chiqdingiz', 'info');
   };
 
-  // Add Single Word (Calls API and updates React state)
+  // Add Single Word (Optimistic UI + Background Server Sync)
   const addWord = async (wordData) => {
-    const newWordPayload = {
+    const newWordPayload = normalizeWord({
+      id: Date.now(),
       word: wordData.word.trim(),
       translation: wordData.translation.trim(),
       transcription: wordData.transcription?.trim() || `/${wordData.word.toLowerCase()}/`,
@@ -270,66 +297,64 @@ export const AppProvider = ({ children }) => {
       incorrectCount: 0,
       isFavorite: false,
       createdAt: new Date().toISOString()
-    };
+    });
 
-    try {
-      const savedWord = await createWord(newWordPayload);
-      const normalized = normalizeWord(savedWord);
-      setWords(prev => [normalized, ...prev]);
-      addCoins(5, 'Yangi so\'z qo\'shildi (+5 coin)');
-      showToast(`"${normalized.word}" so'zi qo'shildi`, 'success');
-      return normalized;
-    } catch (err) {
-      console.error("So'z qo'shishda xatolik:", err);
-      showToast(err.message || "Server bilan aloqa yo'q. So'z qo'shilmadi", 'error');
-    }
+    // Instant local update
+    setWords(prev => [newWordPayload, ...prev]);
+    addCoins(5, 'Yangi so\'z qo\'shildi (+5 coin)');
+    showToast(`"${newWordPayload.word}" so'zi qo'shildi`, 'success');
+
+    // Background sync to server
+    createWord(newWordPayload)
+      .then(saved => {
+        if (saved?.id && saved.id !== newWordPayload.id) {
+          setWords(prev => prev.map(w => w.id === newWordPayload.id ? { ...w, id: saved.id } : w));
+        }
+      })
+      .catch(err => {
+        console.info("Serverga so'zni saqlash offline keshlandi:", err.message);
+      });
+
+    return newWordPayload;
   };
 
   // Import Words (Restore / Merge from backup)
   const importWords = async (newWords, replaceAll = false) => {
     if (!newWords || newWords.length === 0) return 0;
 
-    try {
-      const toAdd = replaceAll
-        ? newWords
-        : newWords.filter(w => !words.some(existing => existing.word.toLowerCase().trim() === w.word?.toLowerCase().trim()));
+    const toAdd = replaceAll
+      ? newWords
+      : newWords.filter(w => !words.some(existing => existing.word.toLowerCase().trim() === w.word?.toLowerCase().trim()));
 
-      const savedList = [];
-      for (const item of toAdd) {
-        if (!item.word || !item.translation) continue;
-        try {
-          const saved = await createWord({
-            ...item,
-            word: item.word.trim(),
-            translation: item.translation.trim(),
-            transcription: item.transcription || `/${item.word.toLowerCase()}/`,
-            box: item.box || 1,
-            nextReviewDate: item.nextReviewDate || new Date().toISOString(),
-            reviewCount: item.reviewCount || 0,
-            correctCount: item.correctCount || 0,
-            incorrectCount: item.incorrectCount || 0,
-            isFavorite: !!item.isFavorite,
-            createdAt: item.createdAt || new Date().toISOString()
-          });
-          savedList.push(normalizeWord(saved));
-        } catch (e) {
-          console.error("Import word error:", e);
-        }
-      }
+    const normalizedList = toAdd.map(item => normalizeWord({
+      ...item,
+      id: item.id || (Date.now() + Math.random()),
+      word: (item.word || '').trim(),
+      translation: (item.translation || '').trim(),
+      transcription: item.transcription || `/${(item.word || '').toLowerCase()}/`,
+      box: item.box || 1,
+      nextReviewDate: item.nextReviewDate || new Date().toISOString(),
+      reviewCount: item.reviewCount || 0,
+      correctCount: item.correctCount || 0,
+      incorrectCount: item.incorrectCount || 0,
+      isFavorite: !!item.isFavorite,
+      createdAt: item.createdAt || new Date().toISOString()
+    }));
 
-      if (replaceAll) {
-        setWords(savedList);
-      } else {
-        setWords(prev => [...savedList, ...prev]);
-      }
-
-      showToast(`${savedList.length} ta so'z muvaffaqiyatli saqlandi!`, 'success');
-      return savedList.length;
-    } catch (err) {
-      console.error("Import error:", err);
-      showToast("So'zlarni import qilishda xatolik yuz berdi", 'error');
-      return 0;
+    if (replaceAll) {
+      setWords(normalizedList);
+    } else {
+      setWords(prev => [...normalizedList, ...prev]);
     }
+
+    showToast(`${normalizedList.length} ta so'z muvaffaqiyatli saqlandi!`, 'success');
+
+    // Background sync to server
+    for (const item of normalizedList) {
+      createWord(item).catch(() => {});
+    }
+
+    return normalizedList.length;
   };
 
   // Bulk Add Words
@@ -345,25 +370,23 @@ export const AppProvider = ({ children }) => {
         const word = parts[0].trim();
         const translation = parts.slice(1).join(' ').trim();
         if (word && translation) {
-          try {
-            const savedWord = await createWord({
-              word,
-              translation,
-              transcription: `/${word.toLowerCase()}/`,
-              example: '',
-              note: 'Tezkor kiritish',
-              box: 1,
-              nextReviewDate: new Date().toISOString(),
-              reviewCount: 0,
-              correctCount: 0,
-              incorrectCount: 0,
-              isFavorite: false,
-              createdAt: new Date().toISOString()
-            });
-            addedList.push(normalizeWord(savedWord));
-          } catch (err) {
-            console.error("Bulk add item error:", err);
-          }
+          const item = normalizeWord({
+            id: Date.now() + Math.random(),
+            word,
+            translation,
+            transcription: `/${word.toLowerCase()}/`,
+            example: '',
+            note: 'Tezkor kiritish',
+            box: 1,
+            nextReviewDate: new Date().toISOString(),
+            reviewCount: 0,
+            correctCount: 0,
+            incorrectCount: 0,
+            isFavorite: false,
+            createdAt: new Date().toISOString()
+          });
+          addedList.push(item);
+          createWord(item).catch(() => {});
         }
       }
     }
@@ -375,33 +398,29 @@ export const AppProvider = ({ children }) => {
       showToast(`${addedList.length} ta yangi so'z saqlandi!`, 'success');
       return addedList.length;
     }
-    showToast("Server bilan aloqa yo'q yoki so'zlar kiritilmadi", 'error');
+    showToast("So'zlar formati mos kelmadi", 'error');
     return 0;
   };
 
-  // Edit Word (Calls API and updates state)
+  // Edit Word (Optimistic + Background API)
   const editWord = async (id, updatedFields) => {
-    try {
-      const updated = await updateWord(id, updatedFields);
-      setWords(prev => prev.map(w => (w.id === id || String(w.id) === String(id)) ? { ...w, ...updated } : w));
-      showToast('So\'z yangilandi', 'success');
-      return updated;
-    } catch (err) {
-      console.error("So'zni tahrirlashda xatolik:", err);
-      showToast(err.message || "Server bilan aloqa yo'q. So'z yangilanmadi", 'error');
-    }
+    setWords(prev => prev.map(w => (w.id === id || String(w.id) === String(id)) ? { ...w, ...updatedFields } : w));
+    showToast('So\'z yangilandi', 'success');
+
+    updateWord(id, updatedFields).catch(err => {
+      console.info("Serverda yangilash offline keshlandi:", err.message);
+    });
+    return updatedFields;
   };
 
-  // Delete Word (Calls API and updates state)
+  // Delete Word (Optimistic + Background API)
   const deleteWord = async (id) => {
-    try {
-      await apiDeleteWord(id);
-      setWords(prev => prev.filter(w => w.id !== id && String(w.id) !== String(id)));
-      showToast('So\'z o\'chirildi', 'error');
-    } catch (err) {
-      console.error("So'zni o'chirishda xatolik:", err);
-      showToast(err.message || "Server bilan aloqa yo'q. So'z o'chirilmadi", 'error');
-    }
+    setWords(prev => prev.filter(w => w.id !== id && String(w.id) !== String(id)));
+    showToast('So\'z o\'chirildi', 'info');
+
+    apiDeleteWord(id).catch(err => {
+      console.info("Serverdan o'chirish offline keshlandi:", err.message);
+    });
   };
 
   // Toggle Favorite
@@ -409,14 +428,10 @@ export const AppProvider = ({ children }) => {
     const target = words.find(w => w.id === id || String(w.id) === String(id));
     if (!target) return;
     const nextFav = !target.isFavorite;
-    try {
-      await updateWord(id, { isFavorite: nextFav });
-      setWords(prev => prev.map(w => (w.id === id || String(w.id) === String(id)) ? { ...w, isFavorite: nextFav } : w));
-      showToast(nextFav ? 'Sevimlilarga qo\'shildi' : 'Sevimlilardan olindi', 'info');
-    } catch (err) {
-      console.error("Sevimlilarni o'zgartirishda xatolik:", err);
-      showToast("Server bilan aloqa yo'q", 'error');
-    }
+    setWords(prev => prev.map(w => (w.id === id || String(w.id) === String(id)) ? { ...w, isFavorite: nextFav } : w));
+    showToast(nextFav ? 'Sevimlilarga qo\'shildi' : 'Sevimlilardan olindi', 'info');
+
+    updateWord(id, { isFavorite: nextFav }).catch(() => {});
   };
 
   // Update Streak & Daily Activity

@@ -2,11 +2,51 @@
   {
     "id": 1,
     "word": "apple",
-    "translation": "olma"
+    "translation": "yangi tarjima"
   },
   {
     "id": 2,
-    "word": "book",
-    "translation": "kitob"
+    "word": "dog",
+    "translation": "it"
+  },
+  {
+    "word": "cat",
+    "translation": "mushuk",
+    "id": 1792424155805
+  },
+  {
+    "word": "cat",
+    "translation": "mushuk",
+    "id": 1792468423182
+  },
+  {
+    "word": "cat",
+    "translation": "mushuk",
+    "id": 1792468612324
+  },
+  {
+    "word": "cat",
+    "translation": "mushuk",
+    "id": 1792468804007
+  },
+  {
+    "word": "dog",
+    "translation": "it",
+    "id": 1792469195244
+  },
+  {
+    "word": "dog",
+    "translation": "it",
+    "id": 1792469343845
+  },
+  {
+    "word": "dog",
+    "translation": "it",
+    "id": 1792469484829
+  },
+  {
+    "word": "dog",
+    "translation": "it",
+    "id": 1792469588636
   }
 ]

@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { speechService } from '../../services/speech';
 import { BackupModal } from './BackupModal';
+import { PronunciationModal } from '../learning/PronunciationModal';
 import { 
   Search, Star, Volume2, Plus, Archive, 
   Trash2, Edit3, ArrowLeft, CheckCircle2, XCircle, Clock, 
-  Download, Tag 
+  Download, Tag, Mic 
 } from 'lucide-react';
 
 export const WordList = ({ onOpenAddModal }) => {
@@ -19,6 +20,7 @@ export const WordList = ({ onOpenAddModal }) => {
   const [activeModal, setActiveModal] = useState(null);
   const [selectedWord, setSelectedWord] = useState(null);
   const [wordToDelete, setWordToDelete] = useState(null);
+  const [pronounceWord, setPronounceWord] = useState(null);
 
   // Edit form state
   const [editEnglish, setEditEnglish] = useState('');
@@ -275,16 +277,27 @@ export const WordList = ({ onOpenAddModal }) => {
                     <span style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)' }}>
                       {item.word}
                     </span>
-                    {/* Audio TTS Icon */}
-                    <button
-                      type="button"
-                      className="btn-press"
-                      onClick={(e) => { e.stopPropagation(); speechService.speak(item.word); }}
-                      style={{ color: 'var(--primary)', padding: '2px', display: 'flex', alignItems: 'center' }}
-                      title="Talaffuzni eshitish"
-                    >
-                      <Volume2 size={16} />
-                    </button>
+                    {/* Audio TTS and Mic Pronunciation Icons */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <button
+                        type="button"
+                        className="btn-press"
+                        onClick={(e) => { e.stopPropagation(); speechService.speak(item.word); }}
+                        style={{ color: 'var(--primary)', padding: '2px', display: 'flex', alignItems: 'center' }}
+                        title="Talaffuzni eshitish"
+                      >
+                        <Volume2 size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-press"
+                        onClick={(e) => { e.stopPropagation(); setPronounceWord(item); }}
+                        style={{ color: 'var(--primary)', padding: '2px', display: 'flex', alignItems: 'center' }}
+                        title="AI Talaffuzni mashq qilish"
+                      >
+                        <Mic size={15} />
+                      </button>
+                    </div>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px', flexWrap: 'wrap' }}>
@@ -517,6 +530,34 @@ export const WordList = ({ onOpenAddModal }) => {
               </div>
             </div>
 
+            {/* Pronunciation Practice Button */}
+            <button
+              onClick={() => {
+                const target = selectedWord;
+                setActiveModal(null);
+                setPronounceWord(target);
+              }}
+              className="btn-press"
+              style={{
+                width: '100%',
+                padding: '13px',
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--primary-gradient)',
+                color: '#FFFFFF',
+                fontWeight: 700,
+                fontSize: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                marginBottom: '10px',
+                boxShadow: 'var(--shadow-primary)',
+                cursor: 'pointer'
+              }}
+            >
+              <Mic size={18} /> 🎙️ AI Talaffuz mashqini boshlash
+            </button>
+
             {/* Action buttons */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <button
@@ -742,6 +783,14 @@ export const WordList = ({ onOpenAddModal }) => {
         onClose={() => setIsBackupOpen(false)}
       />
 
+      {/* AI Pronunciation Modal */}
+      <PronunciationModal
+        isOpen={!!pronounceWord}
+        onClose={() => setPronounceWord(null)}
+        word={pronounceWord}
+      />
+
     </div>
   );
 };
+

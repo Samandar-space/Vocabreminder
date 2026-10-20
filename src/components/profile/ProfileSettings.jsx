@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { BackupModal } from '../words/BackupModal';
+import { TelegramConnectModal } from '../notifications/TelegramConnectModal';
 import { 
   Bell, Target, Globe, Moon, HelpCircle, 
   LogOut, Trash2, ArrowLeft, ChevronRight, Crown, Check, AlertTriangle,
-  Download, Smartphone
+  Download, Smartphone, Send
 } from 'lucide-react';
 
 export const ProfileSettings = ({ onOpenNotifications }) => {
@@ -16,6 +17,7 @@ export const ProfileSettings = ({ onOpenNotifications }) => {
   // Subview: 'main' | 'theme' | 'goal' | 'delete'
   const [subview, setSubview] = useState('main');
   const [isBackupOpen, setIsBackupOpen] = useState(false);
+  const [isTelegramOpen, setIsTelegramOpen] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
 
   // Theme state
@@ -193,6 +195,42 @@ export const ProfileSettings = ({ onOpenNotifications }) => {
               </div>
               <ChevronRight size={18} color="var(--text-tertiary)" />
             </div>
+
+            {/* Telegram Bot Eslatmalari */}
+            <div
+              onClick={() => setIsTelegramOpen(true)}
+              style={{
+                padding: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                borderBottom: '1px solid var(--border-subtle)',
+                cursor: 'pointer'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '50%',
+                  background: '#229ED9',
+                  color: '#FFFFFF',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <Send size={13} />
+                </div>
+                <span style={{ fontSize: '14px', fontWeight: 600 }}>Telegram Bot Eslatmalari</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: 'var(--radius-full)', background: 'rgba(34, 158, 217, 0.12)', color: '#229ED9', fontWeight: 700 }}>
+                  @VocabReminderBot
+                </span>
+                <ChevronRight size={18} color="var(--text-tertiary)" />
+              </div>
+            </div>
+
 
             {/* Kunlik maqsad */}
             <div
@@ -601,6 +639,13 @@ export const ProfileSettings = ({ onOpenNotifications }) => {
         onClose={() => setIsBackupOpen(false)}
       />
 
+      {/* Telegram Bot Connect Modal */}
+      <TelegramConnectModal
+        isOpen={isTelegramOpen}
+        onClose={() => setIsTelegramOpen(false)}
+      />
+
     </div>
   );
 };
+
